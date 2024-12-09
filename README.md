@@ -1,12 +1,12 @@
 ---
 title: Objektcolor
-emoji: 🌍
-colorFrom: green
-colorTo: purple
+emoji: 🎨
+colorFrom: yellow
+colorTo: blue
 sdk: streamlit
 sdk_version: 1.40.2
 app_file: app.py
-pinned: false
+pinned: true
 license: cc-by-nc-4.0
 short_description: Get objekt color code
 ---
