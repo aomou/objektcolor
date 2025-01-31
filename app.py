@@ -78,13 +78,6 @@ else:
     st.write("Objekt name: ", season, collectionNo)
 
     # sort data
-    member_order = [
-        'SeoYeon', 'HyeRin', 'JiWoo', 'ChaeYeon', 'YooYeon', 'SooMin', 'NaKyoung', 'YuBin', 
-        'Kaede', 'DaHyun', 'Kotone', 'YeonJi', 'Nien', 'SoHyun', 'Xinyu', 'Mayu',
-        'Lynn', 'JooBin', 'HaYeon', 'ShiOn', 'ChaeWon', 'Sullin', 'SeoAh', 'JiYeon',
-        'HeeJin', 'HaSeul', 'KimLip', 'JinSoul', 'Choerry',
-        'tripleS', 'AAA', '+(KR)E', 'TokyoHaus', 'Assemble24', 'S21', 'S22', 'S23', 'S24'
-    ]
     def custom_sort(x):
         return member_order.index(x['member']), x['createdAt']
     data.sort(key=custom_sort)
