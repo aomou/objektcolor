@@ -51,6 +51,9 @@ else:
             }
 
     response = requests.get(url, params=params)
+    if not response.ok:
+        st.write("Request is not successful! Please try later.")
+        st.stop()
     data = response.json().get('objekts')
 
     if len(data) == 0:
@@ -67,6 +70,9 @@ else:
             "collectionNo": collectionNo
             }
         response = requests.get(url, params=params)
+        if not response.ok:
+            st.write("Request is not successful! Please try later.")
+            st.stop()
         data = response.json().get('objekts')
 
     st.write("Objekt name: ", season, collectionNo)
