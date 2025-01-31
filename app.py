@@ -24,7 +24,7 @@ def validate_input(qry):
     """ Check input format. Return (season, collectionNo) or (None, None)"""
     qry = qry.upper().strip()
     if not qry:
-        st.write("Please input collection number.") # blank query
+        st.error("Please input collection number.") # blank query
         st.stop()
 
     # check collection format
@@ -33,12 +33,12 @@ def validate_input(qry):
     elif len(qry) == 5 and qry[-1] in ['A', 'Z']:
         pass
     else:
-        st.write("Wrong input format: Please input collection like A101z or D301a.")
+        st.error("Wrong input format: Please input collection like A101z or D301a.")
         st.stop()
 
     # check season
     if qry[0] not in season_dic:
-        st.write("Wrong input season: Season not found.")
+        st.error("Wrong input season: Season not found.")
         st.stop()
     
     season = season_dic[qry[0]]
@@ -53,7 +53,7 @@ def flip_AZ(q):
         return q[:-1] + "A"
     return q
 
-def get_objekts_data(url=url, season, collectionNo):
+def get_objekts_data(season, collectionNo, url=url):
     """ 
     呼叫 API 並回傳 objekts 資料 
     API request and get objekts data 
@@ -65,7 +65,7 @@ def get_objekts_data(url=url, season, collectionNo):
     }
     response = requests.get(url, params=params)
     if not response.ok:
-        st.write("Request failed. Please try later.")
+        st.error("Request failed. Please try later.")
         st.stop()
     data = response.json().get('objekts', [])
     return data
@@ -79,12 +79,12 @@ qry, season, collectionNo = validate_input(
 )
     
 # request & get objekt data
-data = get_objekts_data(url, season, collectionNo)
+data = get_objekts_data(season, collectionNo)
 
 if len(data) == 0:
     qry = flip_AZ(qry)
     collectionNo = qry[1:]
-    data = get_objekts_data(url, season, collectionNo)
+    data = get_objekts_data(season, collectionNo)
 
 st.write("Objekt name: ", season, collectionNo)
 
@@ -93,20 +93,25 @@ data.sort(key=custom_sort)
 
 if len(data):
     # backgroundColor & textColor
-    colors_set = set()
-    colors_lst = [[], []]   # [member], [color] in order
+    colors_dict = {}  
+    # key = (bgcolor, txtcolor)  -> duple
+    # value = {member: [xx, xx]} -> dict { key: lst }
 
-    for i, objekt in enumerate(data):
+    for objekt in data:
+
         bgcolor = objekt.get('backgroundColor').upper()
         txtcolor = objekt.get('textColor').upper()
         member = objekt.get('member')
+        img = objekt.get('frontImage')
+        key = (bgcolor, txtcolor)
 
-        if (bgcolor, txtcolor) not in colors_set:   # 如果還沒有此顏色組合
-            colors_set.add((bgcolor, txtcolor))  # duple
-            colors_lst[0].append(member)
-            colors_lst[1].append((bgcolor, txtcolor))
-
-            with st.container():
+        if key not in colors_dict:   # add new color combo (key)
+            colors_dict[key] = {
+                "members": [member],
+                "images": [img] 
+                }
+            # display color text & imamge
+            with st.container():  
                 col1, col2 = st.columns(2)
                 
                 col1.color_picker("", value=bgcolor, key=member+bgcolor)
@@ -115,21 +120,23 @@ if len(data):
                 col1.color_picker("", value=txtcolor, key=member+txtcolor)
                 col1.markdown(f"Text color: `{txtcolor}`")
 
-                col2.image(data[i]['frontImage'], width = 200)
+                col2.image(img, width = 200)
+
         else:
-            if member not in colors_lst[0]:  # 如果已經有此顏色組合，但是是不同成員
-                i = colors_lst[1].index((bgcolor, txtcolor))
-                colors_lst[0][i] = ", ".join([colors_lst[0][i], member])
+            colors_dict[key]["members"].append(member) 
     
     # 如果超過一種配色，以表格列出
-    if len(colors_set) > 1:
-        df = pd.DataFrame(
-            {
-                "member" : [colors_lst[0][i] for i in range(len(colors_lst[0]))], 
-                "backgroundColor" : [colors_lst[1][i][0] for i in range(len(colors_lst[0]))], 
-                "textColor" : [colors_lst[1][i][1] for i in range(len(colors_lst[0]))]
-            }
-            )
+    if len(colors_dict) > 1:
+        table_data = []
+        for (bg, tc), info in colors_dict.items():
+            # 這裡 info 也是一個 dict，包含 "members", "images", ...
+            members_str = ", ".join(info["members"])  # 將多個成員合併成逗號分隔
+            table_data.append({
+                "member": members_str,
+                "backgroundColor": bg,
+                "textColor": tc,
+            })
+        df = pd.DataFrame(table_data)
         st.dataframe(df, hide_index=True)
 
     if qry in multiple_color:
