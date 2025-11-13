@@ -2,6 +2,7 @@
 
 import requests
 import pandas as pd
+import re
 import streamlit as st
 
 st.header("Get Objekt Color")
@@ -15,9 +16,8 @@ member_order = [
     'Kaede', 'DaHyun', 'Kotone', 'YeonJi', 'Nien', 'SoHyun', 'Xinyu', 'Mayu',
     'Lynn', 'JooBin', 'HaYeon', 'ShiOn', 'ChaeWon', 'Sullin', 'SeoAh', 'JiYeon',
     'HeeJin', 'HaSeul', 'KimLip', 'JinSoul', 'Choerry',
-    'DoHun', 'HeeJu', 'TaeIn', 'JaeYoung', 'JuHo', 'JiWoon', 'HwanHee',
+    # 'DoHun', 'HeeJu', 'TaeIn', 'JaeYoung', 'JuHo', 'JiWoon', 'HwanHee',
     'tripleS', 'AAA', '+(KR)E', 'TokyoHaus', 'Assemble24', 'S21', 'S22', 'S23', 'S24',
-    'idntt',
 ]
 multiple_color = ['C324Z', 'D304A', 'D322A', 'D328A', 'D334A']
 
@@ -31,30 +31,37 @@ def validate_input(qry):
         st.stop()
 
     # check collection format
-    if len(qry) == 4 and "A" <= qry[0] <= "Z":  
-        qry += "Z"
-    elif len(qry) == 5 and qry[-1] in ['A', 'Z']:
-        pass
+    pattern = r"^([A-Z]{1,2})(\d{3})([A-Z]?)$"
+    match = re.match(pattern, qry)
+    if match:
+        q_season = match.group(1)
+        q_collection = match.group(2)
+        q_physical = match.group(3)
+
+        # check season
+        if q_season not in season_dic:
+            st.error("Wrong input season: Season not found.")
+            st.stop()
+        else:
+            season = season_dic[q_season]
+
+        # check physical
+        if q_physical and q_physical == "A":
+            physical = True
+        elif q_physical and q_physical == "Z":
+            physical = False
+        else:
+            qry += "Z"
+            physical = False
+
+        # collection number
+        collectionNo = q_collection + 'A' if physical else q_collection + 'Z'
+
     else:
         st.error("Wrong input format: Please input collection like A101z or D301a.")
         st.stop()
 
-    # check season
-    if qry[0] not in season_dic:
-        st.error("Wrong input season: Season not found.")
-        st.stop()
-    
-    season = season_dic[qry[0]]
-    collectionNo = qry[1:]
-
-    return qry, season, collectionNo
-
-def flip_AZ(q): 
-    if q.endswith("A"):
-        return q[:-1] + "Z"
-    elif q.endswith("Z"):
-        return q[:-1] + "A"
-    return q
+    return qry, season, collectionNo, physical
 
 def get_objekts_data(season, collectionNo, url=url):
     """ 
@@ -76,17 +83,31 @@ def get_objekts_data(season, collectionNo, url=url):
 def custom_sort(x):
     return member_order.index(x['member']), x['createdAt']
 
+
+
+##### main 
+
 # Input collection query & check if validate
-qry, season, collectionNo = validate_input(
+qry, season, collectionNo, physical = validate_input(
     st.text_input("Enter collection number", value="A301", placeholder="example: A301 or C314a")
 )
     
 # request & get objekt data
 data = get_objekts_data(season, collectionNo)
 
+# if cannot found -> try physical / digital
+physical_msg = None
 if len(data) == 0:
-    qry = flip_AZ(qry)
-    collectionNo = qry[1:]
+    if physical:
+        collectionNo = collectionNo[:-1] + "Z"
+        physical = False
+        physical_msg = "Physical not found, changed to digital version."
+
+    else:
+        collectionNo = collectionNo[:-1] + "A"
+        physical = True
+        physical_msg = "Digital not found, changed to physical version."
+
     data = get_objekts_data(season, collectionNo)
 
 st.write("Objekt name: ", season, collectionNo)
@@ -95,6 +116,9 @@ st.write("Objekt name: ", season, collectionNo)
 data.sort(key=custom_sort)
 
 if len(data):
+    if physical_msg:
+        st.warning(physical_msg)
+
     # backgroundColor & textColor
     colors_dict = {}  
     # key = (bgcolor, txtcolor)  -> duple
